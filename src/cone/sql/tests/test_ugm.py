@@ -125,6 +125,7 @@ class TestSqlUgm(NodeTestCase):
                 id,
                 height=count + 1,
                 email='%s@bluedynamics.net' % id,
+                login="email",
                 status='super%s' % (count + 1)
             )
 
@@ -153,6 +154,8 @@ class TestSqlUgm(NodeTestCase):
         self.assertTrue(users.authenticate('phil', 'test123'))
         self.assertTrue(users.authenticate('donald', 'test123'))
         self.assertTrue(users.authenticate('dagobert', 'test124'))
+
+        self.assertTrue(users.authenticate('phil@bluedynamics.net', 'test123'))
 
         # check user attributes
         self.assertEqual(users['phil'].record.data['height'], 1)
@@ -310,12 +313,12 @@ class TestSqlUgm(NodeTestCase):
         # search with attrlist
         r8 = users.search(attrlist=['login', 'height', 'status'])
         self.assertEqual(sorted(r8), sorted([
-            ('donald', {'height': 2, 'login': None, 'status': 'super2'}),
-            ('dagobert', {'height': 3, 'login': None, 'status': 'super3'}),
-            ('mickey', {'height': 4, 'login': None, 'status': 'super4'}),
+            ('donald', {'height': 2, 'login': "email", 'status': 'super2'}),
+            ('dagobert', {'height': 3, 'login': "email", 'status': 'super3'}),
+            ('mickey', {'height': 4, 'login': "email", 'status': 'super4'}),
             ('schlumpf', {'height': None, 'login': 'email', 'status': None}),
             ('schlumpfine', {'height': None, 'login': 'nickname', 'status': None}),
-            ('phil', {'height': 1, 'login': None, 'status': 'super1'})])
+            ('phil', {'height': 1, 'login': "email", 'status': 'super1'})])
         )
 
         r9 = users.search(attrlist=[])
@@ -323,17 +326,17 @@ class TestSqlUgm(NodeTestCase):
             ('donald', {
                 'email': 'donald@bluedynamics.net',
                 'height': 2,
-                'login': None,
+                'login': "email",
                 'status': 'super2'
             }), ('dagobert', {
                 'email': 'dagobert@bluedynamics.net',
                 'height': 3,
-                'login': None,
+                'login': "email",
                 'status': 'super3'
             }), ('mickey', {
                 'email': 'mickey@bluedynamics.net',
                 'height': 4,
-                'login': None,
+                'login': "email",
                 'status': 'super4'
             }), ('schlumpf', {
                 'email': 'schlumpf@bluedynamics.net',
@@ -344,7 +347,7 @@ class TestSqlUgm(NodeTestCase):
             }), ('phil', {
                 'email': 'phil@bluedynamics.net',
                 'height': 1,
-                'login': None,
+                'login': "email",
                 'status': 'super1'
             })
         ]))

@@ -505,6 +505,8 @@ class AuthenticationBehavior(Behavior):
         if not id or not pw:
             return False
 
+        id = self.id_for_login(id)
+
         if id not in self:
             return False
 

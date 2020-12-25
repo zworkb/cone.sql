@@ -1,6 +1,7 @@
 import os
 
 from cone.app import ugm_backend
+from cone.app.authenticators.firebase import FirebaseAuthenticator
 from firebase_admin import auth
 from node.tests import NodeTestCase
 
@@ -71,24 +72,29 @@ class FirebaseTest(NodeTestCase):
         return user
 
 
-    def test_schas(self):
+    def test_auth(self):
         print("schas")
-        ugm=ugm_backend.ugm
+        ugm = ugm_backend.ugm
         d0 = ugm.users.create("donald0")
         d0.passwd(None, "daisy1")
         d1 = ugm.users.create("donald1")
         d1.passwd(None, "daisy1")
-        authenticated = ugm.users.authenticate("donald2", "daisy1")
-        # authenticate(self.layer.current_request, "donald0", "daisy1")
 
-        print(f"done {authenticated}")
+        # first lets test the normal authentication
+        authenticated0 = ugm.users.authenticate("donald0", "daisy1")
 
-    def test_authentication_logging(self):
+        self.assertEqual(authenticated0, True)
 
-        self.layer.authenticated("foo", "foo")
-        orgin_ugm = ugm_backend.ugm
-        ugm_backend.ugm = object()
 
-        authenticate(self.layer.new_request(), 'foo', 'foo1')
 
-        print("ready")
+        print(f"done {authenticated0}")
+
+    def test_authenticator_direct(self):
+        """
+        test the authenticator directly instantiated
+        """
+        auth = FirebaseAuthenticator()
+
+        res = auth.authenticate("donald0", "daisy1")
+
+        self.assertEqual(res,)
