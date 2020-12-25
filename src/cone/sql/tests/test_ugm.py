@@ -90,13 +90,19 @@ class TestSqlModel(unittest.TestCase):
 class TestSqlUgm(NodeTestCase):
     layer = testing.sql_layer
 
+    def setUp(self):
+        self.layer.setUp()
+
+    def tearDown(self):
+        self.layer.tearDown()
+
     @testing.delete_table_records(SQLPrincipal)
     @testing.delete_table_records(SQLGroup)
     @testing.delete_table_records(SQLGroupAssignment)
     @testing.delete_table_records(SQLUser)
     def test_ugm(self):
         os.environ['CONE_SQL_USE_TM'] = '0'
-        self.layer.new_request()
+        # self.layer.new_request()
 
         ugm = Ugm(
             name='sql_ugm',
