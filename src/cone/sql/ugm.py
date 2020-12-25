@@ -1,3 +1,5 @@
+from cone.app.authenticators import firebase
+
 from cone.sql import SQLBase as Base
 from cone.sql import use_tm
 from cone.sql.model import GUID
@@ -504,6 +506,14 @@ class AuthenticationBehavior(Behavior):
         # cannot authenticate user with unset password.
         if not id or not pw:
             return False
+
+        # XXX: must register in zope.components
+        auth = firebase.FirebaseAuthenticator()
+        fbauth = auth.authenticate(id, pw)
+        if fbauth:
+            self.on_authenticated(fbauth["localId"])
+            return True
+
 
         id = self.id_for_login(id)
 
