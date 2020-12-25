@@ -86,15 +86,19 @@ class FirebaseTest(NodeTestCase):
         self.assertEqual(authenticated0, True)
 
 
-
         print(f"done {authenticated0}")
 
     def test_authenticator_direct(self):
         """
         test the authenticator directly instantiated
         """
+        assert "fbdonald" not in ugm_backend.ugm.users
         auth = FirebaseAuthenticator()
+        res = auth.authenticate("donald@duck.com", "daisy1")
+        self.assertTrue(res, True)
 
-        res = auth.authenticate("donald0", "daisy1")
+        assert "fbdonald" in ugm_backend.ugm.users
 
-        self.assertEqual(res,)
+        # now check for the new user's existence in ugm
+        local_user = ugm_backend.ugm.users[res["localId"]]
+        assert local_user.attributes["email"] == "donald@duck.com"
