@@ -73,9 +73,15 @@ class FirebaseTest(NodeTestCase):
 
     def test_schas(self):
         print("schas")
-        d0 = self.ugm.users.create("donald0")
+        ugm=ugm_backend.ugm
+        d0 = ugm.users.create("donald0")
         d0.passwd(None, "daisy1")
-        authenticate("donald", "daisy1")
+        d1 = ugm.users.create("donald1")
+        d1.passwd(None, "daisy1")
+        authenticated = ugm.users.authenticate("donald2", "daisy1")
+        # authenticate(self.layer.current_request, "donald0", "daisy1")
+
+        print(f"done {authenticated}")
 
     def test_authentication_logging(self):
 

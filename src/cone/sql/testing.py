@@ -102,7 +102,10 @@ class SQLLayer(Security):
         sql_backend = os.environ.get('CONE_SQL_TEST_BACKEND')
         # sqlite memory is default test backend
         if not sql_backend:  # pragma no cover
-            engine = create_engine('sqlite:///:memory:', echo=False)
+            # check_same_thread has to be set to False because sqlite rants about different
+            # threads in test_external_authentication.py
+            # but there are no new threads created, so this must have some different reason
+            engine = create_engine('sqlite:///:memory:', echo=False, connect_args={'check_same_thread': False})
         # sqlite persistent in package folder for post mortem analysis
         elif sql_backend == 'sqlite':  # pragma no cover
             curdir = os.path.dirname(__file__)
