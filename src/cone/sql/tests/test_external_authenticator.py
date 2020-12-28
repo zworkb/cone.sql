@@ -104,7 +104,7 @@ class FirebaseTest(NodeTestCase):
         assert local_user.attributes["email"] == "donald@duck.com"
 
 
-    def test_authenticator_direct(self):
+    def test_authenticator_ugm(self):
         """
         test the authenticator directly instantiated
         """
