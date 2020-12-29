@@ -1,32 +1,25 @@
+import base64
+import json
 import os
 
-from cone.app import ugm_backend
+from cone.app import ugm_backend, security
 from cone.app.authenticators.firebase import FirebaseAuthenticator
 from firebase_admin import auth
+from node.ext.ugm.interfaces import IAuthenticator, IUsers
 from node.tests import NodeTestCase
 
 # from cone.app import testing, ugm_backend
 
-# TODO: key is hardcoded now, must be fetched from config
-from cone.app.security import authenticate
+from cone.app.security import authenticate, authenticated_user
+from zope import component
 
 from cone.sql import testing
 
 FIREBASE_WEB_API_KEY = "AIzaSyDqQThSScLrwBybYW5m22rZSYILELPsDz8"
 rest_api_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
 
-certkey = {
-    "type": "service_account",
-    "project_id": "willholzen-293208",
-    "private_key_id": "6ef3b81832e57d27ff3d845893c526068862bffb",
-    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDtYnMoOuMT55mZ\neuqpuhBHhCpJUvBtbCGip2rxxbChPEgAGVF27gRbmiXEqos1qpisrkYcpWIs7esk\nOSlGjrsCryr2ZMQmlWsxUXXZg0yee4v9zYXvNs8uvWIb5fUiNdFJd7XGszgeoI7R\nKX++qHYQ1cRrzTSKQX6aT7FzbL7giCf5yzmWDfQxAzLnHjCmHma5YY+GkAySLDO2\nIgiGJUVg4ybfRIS+chvsz0BjmxB0tewiosDiF5XGSc6QMMHbaopSpkVQVvqRs9wS\nwTiDT+Aipt4pr+XY3FA8pXFwVh9iG1yQR4OcCKH0ufLEX6xNQam+/rL5KcGjryPt\npgsdufgLAgMBAAECggEASW4RQioJESCspknb6fmozH6JGBpkTezLcMWJ8tTcoNuF\nSCaMyRWyWmWR9kZs/oJRbOURwg20k0JbYN6fsng3SArIZuRfurGwsVZJ9qlDW6jK\n8o0PN6KELyic/xVAoT71iNzTaW4J14uB8hh8sAzrTKTbeB9Hd9bvoyswsIw8dTaA\nZr04Bj+4OmQLOLDSNOwsD9LOPl/XJwnN7e1yGV8WBJCqbTHBYSipKA09BLSSYA5z\nDK8V4btVQbwUw7RRrJoCKYsqHokt6n64mJprg3/3+wsK/hSsTBsq9chEotFoNB37\ngtfkqNHtQOGpszx3Iy0azdqGWFTv4qwionuRhT4mCQKBgQD4mbJwXwqcc52ZCtzh\n8GmClHjWzP9zSvdxRcg6gT01nSjupHcFAZkQxVhPrqS54/Vq7wENuhn72Uo6G+6Y\nv8bEeZjlABKgHr0fX3rMvpdfBAfRZCV+BBvGJkJQoyRtYESmuM/zj9Q2hWOw95pk\n+FqJi+ev4pmWdjfIf2H7MejTswKBgQD0c0ou5UAW+dzDYMqJYErvxkogWpONp9kp\nw5vA/Uu6oaEw8Fb6fRuWv0D67HEmc4u2VQMMPgrpSQUuLuEkQOcJ37pySw9+TDAf\np7OM2S2fW2lzO7RdDLHAUZwBY3DcK+zghrzgn7eNun/gsTh9xNi0dV6sUsakkzC8\n4QuFQY7+SQKBgCjnKPviN128jB6lMeie5M1OXn+BJTq0B/iEMcimgQq0PArf1pFl\nTOj8f2ZE5ueLAVNB1duLVkEg5FyhQeWyECM9mpF7LJVZ2WYzEIJljYRdpmemYaDV\nTjiRDPI1lYXFhCYmXFjHvnPmCJwScT3RuxvMgCdpUjn2Y4FCrD1nXdaPAoGAQO5e\nxhYe7/tuqHcNVXA+d3I0PmPQzc/H31AWDy048Fn+dwFgGSkiKuiiWgR0CcKnWcc7\nCAVy4ISE27+YDgkvVXAYFkPZ2bJjFgV1q/QEKlAdsn4pao30qSEET1oaoGEKipk/\nkmraVsszLHvmhYHEDise+qcCHLT8PS+J39uKIAECgYEA2p8PrNNzIuupY9+KATFm\nMoLG+DbKnZujiGKh4FK6VZybWL8g3PEK3J9FU+wsfiz9q8L186/+QCOfiJ1jYEOJ\n+vxmnxh4w/2jqEFbuRq9q3s3+qtAr6UdprWAGR3snTky9URHJEqcH0h7TGXVfZLW\noUaP0QDsapUQYyQeUYCIQWA=\n-----END PRIVATE KEY-----\n",
-    "client_email": "firebase-adminsdk-ifzba@willholzen-293208.iam.gserviceaccount.com",
-    "client_id": "113313836704540671816",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-ifzba%40willholzen-293208.iam.gserviceaccount.com"
-}
+certkey_raw = b'eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsICJwcm9qZWN0X2lkIjogIndpbGxob2x6ZW4tMjkzMjA4IiwgInByaXZhdGVfa2V5X2lkIjogIjZlZjNiODE4MzJlNTdkMjdmZjNkODQ1ODkzYzUyNjA2ODg2MmJmZmIiLCAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUUR0WW5Nb091TVQ1NW1aXG5ldXFwdWhCSGhDcEpVdkJ0YkNHaXAycnh4YkNoUEVnQUdWRjI3Z1JibWlYRXFvczFxcGlzcmtZY3BXSXM3ZXNrXG5PU2xHanJzQ3J5cjJaTVFtbFdzeFVYWFpnMHllZTR2OXpZWHZOczh1dldJYjVmVWlOZEZKZDdYR3N6Z2VvSTdSXG5LWCsrcUhZUTFjUnJ6VFNLUVg2YVQ3RnpiTDdnaUNmNXl6bVdEZlF4QXpMbkhqQ21IbWE1WVkrR2tBeVNMRE8yXG5JZ2lHSlVWZzR5YmZSSVMrY2h2c3owQmpteEIwdGV3aW9zRGlGNVhHU2M2UU1NSGJhb3BTcGtWUVZ2cVJzOXdTXG53VGlEVCtBaXB0NHByK1hZM0ZBOHBYRndWaDlpRzF5UVI0T2NDS0gwdWZMRVg2eE5RYW0rL3JMNUtjR2pyeVB0XG5wZ3NkdWZnTEFnTUJBQUVDZ2dFQVNXNFJRaW9KRVNDc3BrbmI2Zm1vekg2SkdCcGtUZXpMY01XSjh0VGNvTnVGXG5TQ2FNeVJXeVdtV1I5a1pzL29KUmJPVVJ3ZzIwazBKYllONmZzbmczU0FySVp1UmZ1ckd3c1ZaSjlxbERXNmpLXG44bzBQTjZLRUx5aWMveFZBb1Q3MWlOelRhVzRKMTR1QjhoaDhzQXpyVEtUYmVCOUhkOWJ2b3lzd3NJdzhkVGFBXG5acjA0QmorNE9tUUxPTERTTk93c0Q5TE9QbC9YSnduTjdlMXlHVjhXQkpDcWJUSEJZU2lwS0EwOUJMU1NZQTV6XG5ESzhWNGJ0VlFid1V3N1JSckpvQ0tZc3FIb2t0Nm42NG1KcHJnMy8zK3dzSy9oU3NUQnNxOWNoRW90Rm9OQjM3XG5ndGZrcU5IdFFPR3BzengzSXkwYXpkcUdXRlR2NHF3aW9udVJoVDRtQ1FLQmdRRDRtYkp3WHdxY2M1MlpDdHpoXG44R21DbEhqV3pQOXpTdmR4UmNnNmdUMDFuU2p1cEhjRkFaa1F4VmhQcnFTNTQvVnE3d0VOdWhuNzJVbzZHKzZZXG52OGJFZVpqbEFCS2dIcjBmWDNyTXZwZGZCQWZSWkNWK0JCdkdKa0pRb3lSdFlFU211TS96ajlRMmhXT3c5NXBrXG4rRnFKaStldjRwbVdkamZJZjJIN01lalRzd0tCZ1FEMGMwb3U1VUFXK2R6RFlNcUpZRXJ2eGtvZ1dwT05wOWtwXG53NXZBL1V1Nm9hRXc4RmI2ZlJ1V3YwRDY3SEVtYzR1MlZRTU1QZ3JwU1FVdUx1RWtRT2NKMzdweVN3OStUREFmXG5wN09NMlMyZlcybHpPN1JkRExIQVVad0JZM0RjSyt6Z2hyemduN2VOdW4vZ3NUaDl4TmkwZFY2c1VzYWtrekM4XG40UXVGUVk3K1NRS0JnQ2puS1B2aU4xMjhqQjZsTWVpZTVNMU9YbitCSlRxMEIvaUVNY2ltZ1FxMFBBcmYxcEZsXG5UT2o4ZjJaRTV1ZUxBVk5CMWR1TFZrRWc1RnloUWVXeUVDTTltcEY3TEpWWjJXWXpFSUpsallSZHBtZW1ZYURWXG5UamlSRFBJMWxZWEZoQ1ltWEZqSHZuUG1DSndTY1QzUnV4dk1nQ2RwVWpuMlk0RkNyRDFuWGRhUEFvR0FRTzVlXG54aFllNy90dXFIY05WWEErZDNJMFBtUFF6Yy9IMzFBV0R5MDQ4Rm4rZHdGZ0dTa2lLdWlpV2dSMENjS25XY2M3XG5DQVZ5NElTRTI3K1lEZ2t2VlhBWUZrUFoyYkpqRmdWMXEvUUVLbEFkc240cGFvMzBxU0VFVDFvYW9HRUtpcGsvXG5rbXJhVnNzekxIdm1oWUhFRGlzZStxY0NITFQ4UFMrSjM5dUtJQUVDZ1lFQTJwOFByTk56SXV1cFk5K0tBVEZtXG5Nb0xHK0RiS25adWppR0toNEZLNlZaeWJXTDhnM1BFSzNKOUZVK3dzZml6OXE4TDE4Ni8rUUNPZmlKMWpZRU9KXG4rdnhtbnhoNHcvMmpxRUZidVJxOXEzczMrcXRBcjZVZHByV0FHUjNzblRreTlVUkhKRXFjSDBoN1RHWFZmWkxXXG5vVWFQMFFEc2FwVVFZeVFlVVlDSVFXQT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsICJjbGllbnRfZW1haWwiOiAiZmlyZWJhc2UtYWRtaW5zZGstaWZ6YmFAd2lsbGhvbHplbi0yOTMyMDguaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiY2xpZW50X2lkIjogIjExMzMxMzgzNjcwNDU0MDY3MTgxNiIsICJhdXRoX3VyaSI6ICJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20vby9vYXV0aDIvYXV0aCIsICJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCAiYXV0aF9wcm92aWRlcl94NTA5X2NlcnRfdXJsIjogImh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsICJjbGllbnRfeDUwOV9jZXJ0X3VybCI6ICJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9yb2JvdC92MS9tZXRhZGF0YS94NTA5L2ZpcmViYXNlLWFkbWluc2RrLWlmemJhJTQwd2lsbGhvbHplbi0yOTMyMDguaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20ifQ=='
+certkey = json.loads(base64.b64decode(certkey_raw))
 
 UID = "fbdonald"
 PWD = "daisy1"
@@ -93,7 +86,7 @@ class FirebaseTest(NodeTestCase):
         test the authenticator directly instantiated
         """
         assert "fbdonald" not in ugm_backend.ugm.users
-        auth = FirebaseAuthenticator()
+        auth = FirebaseAuthenticator(ugm_backend.ugm.users, FIREBASE_WEB_API_KEY)
         res = auth.authenticate("donald@duck.com", "daisy1")
         self.assertTrue(res, True)
 
@@ -104,16 +97,63 @@ class FirebaseTest(NodeTestCase):
         assert local_user.attributes["email"] == "donald@duck.com"
 
 
-    def test_authenticator_ugm(self):
+    def test_authenticator_adapter(self):
         """
-        test the authenticator directly instantiated
+        test the authenticator by requesting the adapter
         """
         ugm = ugm_backend.ugm
+        users = ugm.users
+
+        adapter = component.provideAdapter(
+            factory=lambda x:
+                FirebaseAuthenticator(ugm.users, FIREBASE_WEB_API_KEY),
+            adapts=[IUsers],
+            provides=IAuthenticator,
+        )
+
+        auti = component.getAdapter(ugm.users, IAuthenticator)
         assert "fbdonald" not in ugm_backend.ugm.users
-        res = ugm.users.authenticate("donald@duck.com", "daisy1")
+        res = auti.authenticate("donald@duck.com", "daisy1")
 
         # now check for the new user's existence in ugm
         assert "fbdonald" in ugm_backend.ugm.users
 
-        # local_user = ugm_backend.ugm.users[res["localId"]]
-        # assert local_user.attributes["email"] == "donald@duck.com"
+        # now create a user locally and check if we can log in with a user that does not exist in fb
+
+        users.create("schlumpf")
+        users["schlumpf"].passwd(None, "daisy1")
+        res = auti.authenticate("schlumpf", "daisy1")
+
+        self.assertTrue(res)
+
+    def test_authenticator_global_authenticate(self):
+        """
+        test the authenticator by calling security.authenticate()
+        """
+
+        ugm = ugm_backend.ugm
+        users = ugm.users
+        request = self.layer.current_request
+
+        component.provideAdapter(
+            factory=lambda users:
+                FirebaseAuthenticator(users, FIREBASE_WEB_API_KEY),
+            adapts=[IUsers],
+            provides=IAuthenticator,
+        )
+
+        u = authenticated_user(request)
+        # self.assertTrue(request.authenticated_userid) # unfortunately this does not work with the dummy request
+
+        assert "fbdonald" not in ugm_backend.ugm.users
+        res = security.authenticate(request, "donald@duck.com", "daisy1")
+
+        # now check for the new user's existence in ugm
+        assert "fbdonald" in ugm_backend.ugm.users
+
+        # now create a user locally and check if we can log in with a user that does not exist in fb
+        users.create("schlumpf")
+        users["schlumpf"].passwd(None, "daisy1")
+        security.authenticate(request, "schlumpf", "daisy1")
+
+        # TODO test with unreachable FB server, it should then at least authenticate locally

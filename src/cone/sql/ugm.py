@@ -507,14 +507,6 @@ class AuthenticationBehavior(Behavior):
         if not id or not pw:
             return False
 
-        # XXX: must register in zope.components
-        auth = firebase.FirebaseAuthenticator()
-        fbauth = auth.authenticate(id, pw)
-        if fbauth:
-            self.on_authenticated(fbauth["localId"])
-            return True
-
-
         id = self.id_for_login(id)
 
         if id not in self:
